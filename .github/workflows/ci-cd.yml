@@ -4,6 +4,13 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch: # Allows manual triggering
+
+# Grant GITHUB_TOKEN the permissions to deploy to GitHub Pages
+permissions:
+  contents: write # Allow GITHUB_TOKEN to push to gh-pages branch (or other content changes)
+  # pages: write # If using the official actions/deploy-pages action
+  # id-token: write # If using OIDC with official actions/deploy-pages
 
 jobs:
   build:
@@ -14,46 +21,66 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
-          node-version: 16
+          node-version: 18
+          cache: 'npm' # Cache npm dependencies
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci # Use 'ci' for cleaner and faster installs in CI
 
       - name: Build Vite app
         run: npm run build
+        # IMPORTANT: Ensure your vite.config.js has the correct 'base' path
+        # if deploying to a subpath like username.github.io/repo-name/
+        # e.g., base: '/your-repo-name/'
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-artifact # You can name this anything
+          path: dist # Path to the directory to upload
 
   deploy:
     needs: build
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
 
     steps:
       - name: Checkout code
+        # Checkout is still needed by gh-pages to have a git context
         uses: actions/checkout@v4
 
       - name: Set up Node.js
-        uses: actions/setup-node@v3
+        # Node is needed for npx gh-pages
+        uses: actions/setup-node@v4
         with:
-          node-version: 16
+          node-version: 18
+          # Caching npm might not be strictly necessary here if you don't run npm install,
+          # but it doesn't hurt if gh-pages is a dev dependency.
+          cache: 'npm'
 
-      - name: Install dependencies
-        run: npm install
+      # If gh-pages is a devDependency in your package.json, install it:
+      - name: Install dependencies (for gh-pages)
+        run: npm ci # Or 'npm install --only=dev' if you want to be more specific
 
-      - name: Build Vite app
-        run: npm run build
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: dist-artifact # Must match the name used in upload-artifact
+          path: dist # Download to the 'dist' directory
 
       - name: Configure Git identity
         run: |
-          git config --global user.name "GitHub Actions"
-          git config --global user.email "github-actions@github.com"
+          git config --global user.name "GitHub Actions Bot"
+          git config --global user.email "actions@github.com" # Or a bot-specific email
 
-      - name: Set up GitHub authentication
-        run: |
-          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+      # The GITHUB_TOKEN is automatically available to the gh-pages package
+      # when the GITHUB_TOKEN env var is set. Explicitly setting remote URL is usually not needed.
+      # - name: Set up GitHub authentication
+      #   run: |
+      #     git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
 
       - name: Deploy to GitHub Pages
-        run: npx gh-pages -d dist
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx gh-pages -d dist
