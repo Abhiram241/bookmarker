@@ -31,7 +31,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100 flex flex-col items-center p-6">
-      <h1 className="text-4xl font-bold mb-6">I am alive</h1>
+      <h1 className="text-4xl font-bold mb-6">My Books!!</h1>
 
       <div className="mb-6 w-full max-w-md bg-gray-800 p-4 rounded-md shadow-md">
         <input
