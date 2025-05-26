@@ -6,16 +6,13 @@ on:
       - main
   workflow_dispatch: # Allows manual triggering
 
-# Grant GITHUB_TOKEN the permissions to deploy to GitHub Pages
+# IMPORTANT: Grant GITHUB_TOKEN the permissions to deploy to GitHub Pages
 permissions:
-  contents: write # Allow GITHUB_TOKEN to push to gh-pages branch (or other content changes)
-  # pages: write # If using the official actions/deploy-pages action
-  # id-token: write # If using OIDC with official actions/deploy-pages
+  contents: write # Crucial: Allows GITHUB_TOKEN to push to the gh-pages branch
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -24,63 +21,62 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 18
-          cache: 'npm' # Cache npm dependencies
+          cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci # Use 'ci' for cleaner and faster installs in CI
+        run: npm ci
 
       - name: Build Vite app
         run: npm run build
-        # IMPORTANT: Ensure your vite.config.js has the correct 'base' path
-        # if deploying to a subpath like username.github.io/repo-name/
-        # e.g., base: '/your-repo-name/'
+        # Remember: vite.config.js 'base' path might be needed:
+        # base: '/your-repo-name/'
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: dist-artifact # You can name this anything
-          path: dist # Path to the directory to upload
+          name: dist-artifact
+          path: dist
 
   deploy:
     needs: build
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
-        # Checkout is still needed by gh-pages to have a git context
+        # Checkout is needed for gh-pages to have a git context,
+        # though gh-pages creates its own temporary repo for the 'dist' content.
         uses: actions/checkout@v4
 
       - name: Set up Node.js
-        # Node is needed for npx gh-pages
         uses: actions/setup-node@v4
         with:
           node-version: 18
-          # Caching npm might not be strictly necessary here if you don't run npm install,
-          # but it doesn't hurt if gh-pages is a dev dependency.
-          cache: 'npm'
+          # Cache might not be strictly needed if only npx gh-pages is run from node_modules
+          # cache: 'npm'
 
-      # If gh-pages is a devDependency in your package.json, install it:
-      - name: Install dependencies (for gh-pages)
-        run: npm ci # Or 'npm install --only=dev' if you want to be more specific
+      # Ensure gh-pages is installed if it's a devDependency
+      - name: Install dev dependencies (for gh-pages)
+        run: npm ci # This will install devDependencies including gh-pages
 
       - name: Download build artifact
         uses: actions/download-artifact@v4
         with:
-          name: dist-artifact # Must match the name used in upload-artifact
-          path: dist # Download to the 'dist' directory
+          name: dist-artifact
+          path: dist
 
-      - name: Configure Git identity
+      # Git identity configuration is good practice for the commit gh-pages makes,
+      # alternatively, use the -u flag with gh-pages
+      - name: Configure Git User
         run: |
-          git config --global user.name "GitHub Actions Bot"
-          git config --global user.email "actions@github.com" # Or a bot-specific email
-
-      # The GITHUB_TOKEN is automatically available to the gh-pages package
-      # when the GITHUB_TOKEN env var is set. Explicitly setting remote URL is usually not needed.
-      # - name: Set up GitHub authentication
-      #   run: |
-      #     git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
       - name: Deploy to GitHub Pages
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npx gh-pages -d dist
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is used by gh-pages
+        run: |
+          npx gh-pages \
+            --dist dist \
+            --repo https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git \
+            --user "github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>" \
+            --message "Deploy to GitHub Pages from GHA: ${{ github.sha }}" \
+            --silent
