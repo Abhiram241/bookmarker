@@ -4,11 +4,10 @@ on:
   push:
     branches:
       - main
-  workflow_dispatch: # Allows manual triggering
+  workflow_dispatch: # Manual trigger
 
-# Grant GITHUB_TOKEN the permissions to deploy to GitHub Pages
 permissions:
-  contents: write # Crucial: Allows GITHUB_TOKEN to push to the gh-pages branch
+  contents: write # Required for pushing to gh-pages
 
 jobs:
   build:
@@ -22,60 +21,45 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 18 # Or your preferred Node.js version
+          node-version: 18
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci # Use 'ci' for cleaner, faster, and more reliable installs in CI
+        run: npm ci
 
       - name: Build Vite app
         run: npm run build
-        # IMPORTANT: Ensure your vite.config.js has the correct 'base' path
-        # For you: base: '/bookmarker/'
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
           name: dist-artifact
-          path: dist # Path to the directory to upload (Vite's default is 'dist')
+          path: dist
 
   deploy:
     name: Deploy to GitHub Pages
-    needs: build # Ensures the build job completes successfully first
+    needs: build
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
-        # Checkout is still needed by gh-pages to have a git context
         uses: actions/checkout@v4
 
       - name: Set up Node.js
-        # Node is needed for npx gh-pages
         uses: actions/setup-node@v4
         with:
-          node-version: 18 # Or your preferred Node.js version
+          node-version: 18
 
-      # Ensure gh-pages is installed if it's a devDependency in your package.json
       - name: Install dev dependencies (for gh-pages)
-        run: npm ci # This will install devDependencies including gh-pages
+        run: npm ci
 
       - name: Download build artifact
         uses: actions/download-artifact@v4
         with:
-          name: dist-artifact # Must match the name used in upload-artifact
-          path: dist # Download to the 'dist' directory
+          name: dist-artifact
+          path: dist
 
-      # Optional: Add these for debugging if problems persist
-      - name: List contents of dist directory (for debugging)
-        if: always() # Run even if previous steps fail, good for debugging
-        run: |
-          echo "--- Listing contents of dist/ ---"
-          ls -R dist
-          echo "--- Checking index.html head (first 20 lines) ---"
-          head -n 20 dist/index.html || echo "dist/index.html not found or empty"
-
-      # Global Git identity is good practice, but gh-pages --user will override for its commit
-      - name: Configure Git identity (fallback)
+      - name: Configure Git identity
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -87,6 +71,5 @@ jobs:
           npx gh-pages \
             --dist dist \
             --repo "https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git" \
-            --user 'github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>' \
-            --message "Deploy to GitHub Pages from GHA: ${{ github.sha }}"
-            # --silent flag removed for more verbose output from gh-pages
+            --message "Deploy to GitHub Pages from GHA: ${{ github.sha }}" \
+            --silent
