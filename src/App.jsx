@@ -32,7 +32,7 @@ export default function App() {
       {/* Header */}
       <header className="w-full bg-gradient-to-r from-indigo-900 via-purple-800 to-indigo-800 py-4 px-6 shadow-md shadow-indigo-700/30">
         <h1 className="text-3xl md:text-4xl font-extrabold text-center text-white tracking-wider animate-pulse">
-          ✨ BookNest ✨
+          ✨ Booknest ✨
         </h1>
         <p className="text-center text-sm md:text-base text-purple-200 mt-1 italic">
           Keep track of your books!!🥳
