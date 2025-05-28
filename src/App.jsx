@@ -35,7 +35,7 @@ export default function App() {
           ✨ BookNest ✨
         </h1>
         <p className="text-center text-sm md:text-base text-purple-200 mt-1 italic">
-          Keep track of your books
+          Keep track of your books!!🥳
         </p>
       </header>
 
